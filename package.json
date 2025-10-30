@@ -9,9 +9,19 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "next": "16.0.1"
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "next": "14.2.13",
+    "next-auth": "^5.0.0-beta.20",
+    "@auth/prisma-adapter": "^2.7.3",
+    "@prisma/client": "^5.20.0",
+    "prisma": "^5.20.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "@radix-ui/react-slot": "^1.0.4",
+    "tailwind-merge": "^2.5.4",
+    "lucide-react": "^0.469.0",
+    "sonner": "^1.5.0"
   },
   "devDependencies": {
     "babel-plugin-react-compiler": "1.0.0",
@@ -21,7 +31,7 @@
     "@types/react-dom": "^19",
     "@tailwindcss/postcss": "^4",
     "tailwindcss": "^4",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.1"
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.13"
   }
 }
