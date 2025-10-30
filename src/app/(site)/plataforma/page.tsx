@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { auth } from "@/auth";
 import { ProductCard } from "@/components/product-card";
 import { fetchHotmartProducts } from "@/lib/hotmart";
@@ -54,3 +56,4 @@ export default async function PlataformaPage() {
     </div>
   );
 }
+

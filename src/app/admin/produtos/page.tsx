@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Image from "next/image";
 
 import { fetchHotmartProducts } from "@/lib/hotmart";
@@ -93,3 +95,4 @@ export default async function ProdutosPage() {
     </div>
   );
 }
+
