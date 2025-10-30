@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// Correção: importar os plugins corretamente com `.default`
 const typescript = (await import('@typescript-eslint/eslint-plugin')).default
 const tsParser = (await import('@typescript-eslint/parser')).default
 const react = (await import('eslint-plugin-react')).default
@@ -14,6 +13,28 @@ const reactHooks = (await import('eslint-plugin-react-hooks')).default
 export default [
   js.configs.recommended,
 
+  // 🧠 Ambiente Node.js para libs que usam process, db, fs, etc
+  {
+    files: ['src/lib/**/*.ts'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: './tsconfig.json',
+        tsconfigRootDir: __dirname,
+      },
+      globals: {
+        process: 'readonly',
+        module: 'readonly',
+        __dirname: 'readonly',
+        require: 'readonly',
+      },
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+    },
+    rules: {},
+  },
+
+  // 🧠 TypeScript (geral)
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
@@ -31,16 +52,17 @@ export default [
     },
   },
 
+  // 🧠 React e React Hooks
   {
-    files: ['**/*.jsx', '**/*.tsx'],
+    files: ['**/*.tsx'],
+    plugins: {
+      react,
+      'react-hooks': reactHooks,
+    },
     languageOptions: {
       globals: {
         React: 'readonly',
       },
-    },
-    plugins: {
-      react: react,
-      'react-hooks': reactHooks,
     },
     rules: {
       ...react.configs.recommended.rules,
@@ -48,6 +70,7 @@ export default [
     },
   },
 
+  // 🧹 Ignorar arquivos gerados
   {
     ignores: ['.next/**', 'build/**', 'out/**', 'next-env.d.ts'],
   },
