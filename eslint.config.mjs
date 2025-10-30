@@ -54,7 +54,7 @@ export default [
 
   // 🧠 React e React Hooks
   {
-    files: ['**/*.tsx'],
+    files: ['**/*.{ts,tsx,js,jsx}'],
     plugins: {
       react,
       'react-hooks': reactHooks,
