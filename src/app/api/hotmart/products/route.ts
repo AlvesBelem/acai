@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
-import { fetchHotmart } from "@/lib/hotmart";
-
 export async function GET(request: Request) {
+  // lazy import para evitar efeitos colaterais na fase de build
+  const { auth } = await import("@/auth");
+  const { fetchHotmart } = await import("@/lib/hotmart");
+
   const session = await auth();
   const role = session?.user?.role;
   if (role !== "ADMIN") {
