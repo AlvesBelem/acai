@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AppRole, ROLES } from "@/lib/roles";
@@ -17,13 +17,11 @@ type AdminHeaderProps = {
 
 export function AdminHeader({ user }: AdminHeaderProps) {
   const [pending, startTransition] = useTransition();
-  const session = useSession();
-  const sessionUser = session.data?.user;
 
-  const displayImage = sessionUser?.image ?? user?.image ?? null;
-  const displayName = sessionUser?.name ?? user?.name ?? "Administrador";
-  const displayEmail = sessionUser?.email ?? user?.email ?? "Sem email";
-  const role = (sessionUser?.role ?? user?.role ?? ROLES.LEAD) as AppRole;
+  const displayImage = user?.image ?? null;
+  const displayName = user?.name ?? "Administrador";
+  const displayEmail = user?.email ?? "Sem email";
+  const role = (user?.role ?? ROLES.LEAD) as AppRole;
 
   const initials =
     displayName?.slice(0, 2)?.toUpperCase() ||
