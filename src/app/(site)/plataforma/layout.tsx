@@ -1,29 +1,27 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
-import { AdminSidebar, AdminSidebarMobile, type AdminNavItem } from "@/components/admin/sidebar";
 import { AdminHeader } from "@/components/admin/header";
+import { AdminSidebar, AdminSidebarMobile, type AdminNavItem } from "@/components/admin/sidebar";
+import { db } from "@/lib/db";
 import { AppRole } from "@/lib/roles";
 
 const NAV_ITEMS: AdminNavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: "dashboard", href: "/admin" },
-  { id: "admins", label: "Administradores", icon: "admins", href: "/admin/admins" },
-  { id: "clientes", label: "Clientes", icon: "clientes", href: "/admin/clientes" },
-  { id: "produtos", label: "Produtos", icon: "produtos", href: "/admin/produtos" },
-    { id: "integracoes", label: "Integracoes", icon: "integracao", href: "/admin/integracoes/hotmart" },
+  { id: "produtos", label: "Produtos", icon: "produtos", href: "/plataforma" },
 ];
 
-export default async function AdminLayout({
+export default async function PlataformaLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const session = await auth();
-  const role = session?.user?.role as AppRole | undefined;
 
-  if (role !== "ADMIN") {
-    redirect("/plataforma");
+  if (!session?.user) {
+    redirect("/");
   }
 
   let viewer = null as
@@ -36,7 +34,7 @@ export default async function AdminLayout({
       }
     | null;
 
-  if (session?.user?.id) {
+  if (session.user.id) {
     const record = await db.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -63,12 +61,12 @@ export default async function AdminLayout({
         name: record.name,
         email: record.email,
         image,
-        role: record.role as AppRole,
+        role: (record.role ?? session.user.role ?? "LEAD") as AppRole,
       };
     }
   }
 
-  const headerUser = viewer ?? (session?.user ?? null);
+  const headerUser = viewer ?? session.user;
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 transition-colors dark:bg-zinc-950 dark:text-zinc-100">
@@ -85,7 +83,3 @@ export default async function AdminLayout({
     </div>
   );
 }
-
-
-
-
