@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import type { HotmartConfig } from "@prisma/client";
 
 import { db } from "@/lib/db";
