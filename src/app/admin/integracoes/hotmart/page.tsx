@@ -1,3 +1,5 @@
+import type { HotmartConfig } from "@prisma/client";
+
 import { db } from "@/lib/db";
 import { getHotmartConfig } from "@/lib/hotmart";
 import { saveHotmartConfig } from "@/lib/actions";
@@ -5,13 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-async function loadConfig() {
-  const config = await (db as any).hotmartConfig.findFirst();
+async function loadConfig(): Promise<HotmartConfig | null> {
+  const config = await db.hotmartConfig.findFirst();
   if (config) {
     return config;
   }
-  const envConfig = await getHotmartConfig();
-  return envConfig;
+  return getHotmartConfig();
 }
 
 export default async function HotmartIntegracaoPage() {
@@ -32,7 +33,7 @@ export default async function HotmartIntegracaoPage() {
           <Input
             id="clientId"
             name="clientId"
-            defaultValue={config?.clientId ?? process.env.HOTMART_CLIENT_ID ?? ""}
+            defaultValue={config?.clientId ?? ""}
             placeholder="client_id"
             required
           />
@@ -43,7 +44,7 @@ export default async function HotmartIntegracaoPage() {
             id="clientSecret"
             name="clientSecret"
             type="password"
-            defaultValue={config?.clientSecret ?? process.env.HOTMART_CLIENT_SECRET ?? ""}
+            defaultValue={config?.clientSecret ?? ""}
             placeholder="client_secret"
             required
           />
@@ -54,7 +55,7 @@ export default async function HotmartIntegracaoPage() {
             id="basicToken"
             name="basicToken"
             type="password"
-            defaultValue={config?.basicToken ?? process.env.HOTMART_BASIC_TOKEN ?? ""}
+            defaultValue={config?.basicToken ?? ""}
             placeholder="Base64(clientId:clientSecret)"
             required
           />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AppRole, ROLES } from "@/lib/roles";
@@ -17,9 +17,18 @@ type AdminHeaderProps = {
 
 export function AdminHeader({ user }: AdminHeaderProps) {
   const [pending, startTransition] = useTransition();
+  const session = useSession();
+  const sessionUser = session.data?.user;
 
-  const initials = user?.name?.slice(0, 2).toUpperCase() || user?.email?.slice(0, 2).toUpperCase() || "AC";
-  const role = user?.role ?? ROLES.LEAD;
+  const displayImage = sessionUser?.image ?? user?.image ?? null;
+  const displayName = sessionUser?.name ?? user?.name ?? "Administrador";
+  const displayEmail = sessionUser?.email ?? user?.email ?? "Sem email";
+  const role = (sessionUser?.role ?? user?.role ?? ROLES.LEAD) as AppRole;
+
+  const initials =
+    displayName?.slice(0, 2)?.toUpperCase() ||
+    displayEmail?.slice(0, 2)?.toUpperCase() ||
+    "AC";
 
   const handleSignOut = () => {
     startTransition(() => {
@@ -32,14 +41,18 @@ export function AdminHeader({ user }: AdminHeaderProps) {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <Avatar className="h-14 w-14">
-            {user?.image ? <AvatarImage src={user.image} alt={user.name ?? "Usuario"} /> : null}
+            {displayImage ? (
+              <AvatarImage src={displayImage} alt={displayName ?? "Usuario"} />
+            ) : null}
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div>
             <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-              {user?.name ?? "Administrador"}
+              {displayName ?? "Administrador"}
             </p>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">{user?.email ?? "Sem email"}</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              {displayEmail ?? "Sem email"}
+            </p>
             <span className="mt-1 inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {role === "ADMIN" ? "Administrador" : "Lead"}
             </span>
