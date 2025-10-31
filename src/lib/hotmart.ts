@@ -2,6 +2,8 @@ import "server-only";
 
 import { cache } from "react";
 
+import { Prisma } from "@prisma/client";
+
 import { db } from "@/lib/db";
 
 const DEFAULT_BASE_URL = process.env.HOTMART_API_BASE ?? "https://api-sec-v2.hotmart.com";
@@ -31,8 +33,22 @@ export type NormalizedHotmartSale = {
 };
 
 export const getHotmartConfig = cache(async () => {
-  const config = await (db as any).hotmartConfig?.findFirst?.({});
-  if (config) return config;
+  try {
+    const config = await (db as any).hotmartConfig?.findFirst?.({});
+    if (config) return config;
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientInitializationError ||
+      error instanceof Prisma.PrismaClientKnownRequestError
+    ) {
+      console.warn(
+        "[hotmart] Prisma unavailable during getHotmartConfig, falling back to env.",
+        error.message,
+      );
+    } else {
+      throw error;
+    }
+  }
 
   const envClientId = process.env.HOTMART_CLIENT_ID;
   const envClientSecret = process.env.HOTMART_CLIENT_SECRET;

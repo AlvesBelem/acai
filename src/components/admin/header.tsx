@@ -18,8 +18,15 @@ type AdminHeaderProps = {
 export function AdminHeader({ user }: AdminHeaderProps) {
   const [pending, startTransition] = useTransition();
 
-  const initials = user?.name?.slice(0, 2).toUpperCase() || user?.email?.slice(0, 2).toUpperCase() || "AC";
-  const role = user?.role ?? ROLES.LEAD;
+  const displayImage = user?.image ?? null;
+  const displayName = user?.name ?? "Administrador";
+  const displayEmail = user?.email ?? "Sem email";
+  const role = (user?.role ?? ROLES.LEAD) as AppRole;
+
+  const initials =
+    displayName?.slice(0, 2)?.toUpperCase() ||
+    displayEmail?.slice(0, 2)?.toUpperCase() ||
+    "AC";
 
   const handleSignOut = () => {
     startTransition(() => {
@@ -32,14 +39,18 @@ export function AdminHeader({ user }: AdminHeaderProps) {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <Avatar className="h-14 w-14">
-            {user?.image ? <AvatarImage src={user.image} alt={user.name ?? "Usuario"} /> : null}
+            {displayImage ? (
+              <AvatarImage src={displayImage} alt={displayName ?? "Usuario"} />
+            ) : null}
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div>
             <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-              {user?.name ?? "Administrador"}
+              {displayName ?? "Administrador"}
             </p>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">{user?.email ?? "Sem email"}</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              {displayEmail ?? "Sem email"}
+            </p>
             <span className="mt-1 inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {role === "ADMIN" ? "Administrador" : "Lead"}
             </span>

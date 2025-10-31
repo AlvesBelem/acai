@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { db } from "@/lib/db";
 import { fetchHotmartSalesHistory } from "@/lib/hotmart";
 import { cn } from "@/lib/utils";
@@ -163,3 +165,4 @@ function SummaryCard({
     </div>
   );
 }
+
