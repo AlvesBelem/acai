@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { Navbar } from "@/components/navbar";
 
 export default function SiteLayout({
@@ -12,4 +15,3 @@ export default function SiteLayout({
     </div>
   );
 }
-
