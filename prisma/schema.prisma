@@ -25,6 +25,7 @@ model User {
   company   String?
   jobTitle  String?
   location  String?
+  source    String?
   emailVerified DateTime?
   role      Role      @default(LEAD)
   createdAt DateTime  @default(now())

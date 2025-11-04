@@ -10,6 +10,7 @@ import {
   Leaf,
   LucideIcon,
   MapPin,
+  MessageCircle,
   ShieldCheck,
   Sparkles,
   TimerReset,
@@ -497,6 +498,20 @@ export default function Landing() {
           © {new Date().getFullYear()} Açaí Coleta. Sustentabilidade e geração de renda na cadeia do açaí.
         </p>
       </footer>
+      <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex max-w-xs items-center gap-3">
+        <div className="pointer-events-auto rounded-2xl bg-white/90 px-4 py-3 text-sm font-semibold text-[#2B0141] shadow-lg shadow-[#2B0141]/30 backdrop-blur">
+          Recolhemos caroços com logistica reversa segura. Fale com o time agora.
+        </div>
+        <a
+          href="https://wa.me/5511998272999"
+          target="_blank"
+          rel="noreferrer"
+          className="pointer-events-auto flex h-20 w-50 items-center justify-center rounded-full bg-[#25D366] text-white shadow-xl shadow-[#25D366]/40 transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-[#25D366] focus-visible:outline-offset-2 animate-bounce"
+        >
+          <MessageCircle className="h-7 w-7" />
+          <span className="sr-only">Contato via WhatsApp</span>
+        </a>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ type UserWithRole = AdapterUser & {
   company?: string | null;
   jobTitle?: string | null;
   location?: string | null;
+  source?: string | null;
 };
 
 type TokenWithRole = JWT & {
@@ -23,6 +24,7 @@ type TokenWithRole = JWT & {
   company?: string | null;
   jobTitle?: string | null;
   location?: string | null;
+  source?: string | null;
 };
 
 type GoogleLeadDetails = {
@@ -31,14 +33,18 @@ type GoogleLeadDetails = {
   company?: string | null;
   jobTitle?: string | null;
   location?: string | null;
+  source?: string | null;
 };
 
 const GOOGLE_PEOPLE_FIELDS = "phoneNumbers,addresses,organizations,locales";
 const GOOGLE_PEOPLE_ENDPOINT = `https://people.googleapis.com/v1/people/me?personFields=${encodeURIComponent(
   GOOGLE_PEOPLE_FIELDS
 )}`;
+const env = (globalThis.process?.env ?? {}) as Record<string, string | undefined>;
+const GOOGLE_CLIENT_ID = env.AUTH_GOOGLE_ID ?? "";
+const GOOGLE_CLIENT_SECRET = env.AUTH_GOOGLE_SECRET ?? "";
 
-function getPrimaryValue<T extends { metadata?: { primary?: boolean | null } }>(
+function getPrimaryValue<T extends { metadata?: { primary?: boolean | null } | null | undefined }>(
   items: T[] | null | undefined,
   getValue: (item: T) => string | null | undefined
 ) {
@@ -56,7 +62,12 @@ function isEdgeRuntime() {
 async function fetchGoogleLeadDetails(accessToken: string): Promise<GoogleLeadDetails | null> {
   if (!accessToken) return null;
 
-  const response = await fetch(GOOGLE_PEOPLE_ENDPOINT, {
+  const fetchApi = typeof globalThis.fetch === "function" ? globalThis.fetch.bind(globalThis) : null;
+  if (!fetchApi) {
+    return null;
+  }
+
+  const response = await fetchApi(GOOGLE_PEOPLE_ENDPOINT, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -86,12 +97,12 @@ async function fetchGoogleLeadDetails(accessToken: string): Promise<GoogleLeadDe
     locales?: PeopleLocale[] | null;
   };
 
-  const phone = getPrimaryValue(data.phoneNumbers, (item) => item.value ?? null);
-  const location = getPrimaryValue(data.addresses, (item) => item.formattedValue ?? null);
+  const phone = getPrimaryValue<PeoplePhone>(data.phoneNumbers, (item) => item.value ?? null);
+  const location = getPrimaryValue<PeopleAddress>(data.addresses, (item) => item.formattedValue ?? null);
 
-  const organization = getPrimaryValue(data.organizations, (item) => item.name ?? null);
-  const jobTitle = getPrimaryValue(data.organizations, (item) => item.title ?? null);
-  const locale = getPrimaryValue(data.locales, (item) => item.value ?? null);
+  const organization = getPrimaryValue<PeopleOrg>(data.organizations, (item) => item.name ?? null);
+  const jobTitle = getPrimaryValue<PeopleOrg>(data.organizations, (item) => item.title ?? null);
+  const locale = getPrimaryValue<PeopleLocale>(data.locales, (item) => item.value ?? null);
 
   if (!phone && !location && !organization && !jobTitle && !locale) {
     return null;
@@ -103,6 +114,7 @@ async function fetchGoogleLeadDetails(accessToken: string): Promise<GoogleLeadDe
     company: organization ?? null,
     jobTitle: jobTitle ?? null,
     locale: locale ?? null,
+    source: "Google People API",
   };
 }
 
@@ -115,6 +127,7 @@ async function updateLeadDetailsFromGoogle(userId: string, details: GoogleLeadDe
     company: details.company ?? null,
     jobTitle: details.jobTitle ?? null,
     location: details.location ?? null,
+    source: details.source ?? null,
   };
 
   const hasAny = Object.values(payload).some((value) => value !== null);
@@ -143,8 +156,8 @@ export const {
   },
   providers: [
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID!,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
           scope:
@@ -156,7 +169,7 @@ export const {
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
-        const { id, role, image, phone, locale, company, jobTitle, location } = user as UserWithRole;
+        const { id, role, image, phone, locale, company, jobTitle, location, source } = user as UserWithRole;
         token.id = id;
         token.role = role ?? DEFAULT_ROLE;
         if (typeof image === "string" && image.length > 0) {
@@ -177,18 +190,14 @@ export const {
         if (typeof location === "string" && location.length > 0) {
           token.location = location;
         }
+        if (typeof source === "string" && source.length > 0) {
+          token.source = source;
+        }
       } else if (!isEdgeRuntime() && typeof token.sub === "string") {
         const dbUser = await db.user.findUnique({
           where: { id: token.sub },
-          select: {
-            image: true,
-            phone: true,
-            locale: true,
-            company: true,
-            jobTitle: true,
-            location: true,
-          },
         });
+        const dbSource = (dbUser as { source?: string | null } | null)?.source ?? null;
         if (!token.picture && dbUser?.image) {
           token.picture = dbUser.image;
         }
@@ -207,6 +216,13 @@ export const {
         if (!token.location && dbUser?.location) {
           token.location = dbUser.location;
         }
+        if (!token.source && dbSource) {
+          token.source = dbSource;
+        }
+      }
+
+      if (!token.source) {
+        token.source = "Google OAuth";
       }
 
       if (
@@ -225,9 +241,10 @@ export const {
             if (details.company) token.company = details.company;
             if (details.jobTitle) token.jobTitle = details.jobTitle;
             if (details.location) token.location = details.location;
+            if (details.source) token.source = details.source;
           }
         } catch (error) {
-          console.error("[auth] enrich-google-lead failed", error);
+          globalThis.console?.error?.("[auth] enrich-google-lead failed", error);
         }
       }
 
@@ -235,7 +252,8 @@ export const {
     },
     async session({ session, token }) {
       if (session.user) {
-        const { id, role, picture, phone, locale, company, jobTitle, location } = token as TokenWithRole;
+        const { id, role, picture, phone, locale, company, jobTitle, location, source } =
+          token as TokenWithRole;
         if (typeof id === "string") {
           session.user.id = id;
         }
@@ -244,22 +262,26 @@ export const {
           session.user.image = picture;
         }
         if (typeof phone === "string") {
-          (session.user as Record<string, unknown>).phone = phone;
+          session.user.phone = phone;
         }
         if (typeof locale === "string") {
-          (session.user as Record<string, unknown>).locale = locale;
+          session.user.locale = locale;
         }
         if (typeof company === "string") {
-          (session.user as Record<string, unknown>).company = company;
+          session.user.company = company;
         }
         if (typeof jobTitle === "string") {
-          (session.user as Record<string, unknown>).jobTitle = jobTitle;
+          session.user.jobTitle = jobTitle;
         }
         if (typeof location === "string") {
-          (session.user as Record<string, unknown>).location = location;
+          session.user.location = location;
+        }
+        if (typeof source === "string") {
+          session.user.source = source;
         }
       }
       return session;
     },
   },
 });
+
