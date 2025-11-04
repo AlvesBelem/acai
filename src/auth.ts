@@ -41,8 +41,21 @@ const GOOGLE_PEOPLE_ENDPOINT = `https://people.googleapis.com/v1/people/me?perso
   GOOGLE_PEOPLE_FIELDS
 )}`;
 const env = (globalThis.process?.env ?? {}) as Record<string, string | undefined>;
-const GOOGLE_CLIENT_ID = env.AUTH_GOOGLE_ID ?? "";
-const GOOGLE_CLIENT_SECRET = env.AUTH_GOOGLE_SECRET ?? "";
+const GOOGLE_CLIENT_ID = env.AUTH_GOOGLE_ID;
+const GOOGLE_CLIENT_SECRET = env.AUTH_GOOGLE_SECRET;
+const AUTH_SECRET = env.AUTH_SECRET;
+
+if (!GOOGLE_CLIENT_ID) {
+  throw new Error("AUTH_GOOGLE_ID is not set in the environment.");
+}
+
+if (!GOOGLE_CLIENT_SECRET) {
+  throw new Error("AUTH_GOOGLE_SECRET is not set in the environment.");
+}
+
+if (!AUTH_SECRET) {
+  throw new Error("AUTH_SECRET is not set in the environment.");
+}
 
 function getPrimaryValue<T extends { metadata?: { primary?: boolean | null } | null | undefined }>(
   items: T[] | null | undefined,
