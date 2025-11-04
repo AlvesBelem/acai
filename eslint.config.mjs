@@ -1,25 +1,41 @@
-import js from "@eslint/js";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import tsParser from "@typescript-eslint/parser";
+// eslint.config.mjs
 
-export default [
+import js from '@eslint/js';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
+import next from 'eslint-config-next';
+
+const config = [
   js.configs.recommended,
+  ...next,
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: "./tsconfig.json",
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        project: './tsconfig.json',
       },
     },
     plugins: {
-      "@typescript-eslint": tseslint,
+      '@typescript-eslint': tseslint,
     },
     rules: {
       ...tseslint.configs.recommended.rules,
     },
   },
   {
-    ignores: [".next/**", "build/**", "out/**", "node_modules/**", "next-env.d.ts"],
+    ignores: [
+      'node_modules/',
+      '.next/',
+      'dist/',
+      'out/',
+      'build/',
+      'coverage/',
+      'public/',
+    ],
   },
 ];
+
+export default config;
