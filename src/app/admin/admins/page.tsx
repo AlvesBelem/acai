@@ -1,11 +1,20 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+import { redirect } from "next/navigation";
+
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { demoteToLead } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
+import { ROLES } from "@/lib/roles";
 
 export default async function AdminsPage() {
+  const session = await auth();
+  if (session?.user?.role !== ROLES.SUPERUSER) {
+    redirect("/admin");
+  }
+
   const admins = await db.user.findMany({
     where: { role: "ADMIN" },
     orderBy: { createdAt: "desc" },
@@ -51,4 +60,3 @@ export default async function AdminsPage() {
     </div>
   );
 }
-

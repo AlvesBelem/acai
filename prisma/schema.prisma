@@ -10,6 +10,7 @@ datasource db {
 }
 
 enum Role {
+  SUPERUSER
   ADMIN
   LEAD
 }
@@ -19,6 +20,11 @@ model User {
   name      String?
   email     String    @unique
   image     String?
+  phone     String?
+  locale    String?
+  company   String?
+  jobTitle  String?
+  location  String?
   emailVerified DateTime?
   role      Role      @default(LEAD)
   createdAt DateTime  @default(now())
@@ -29,16 +35,20 @@ model User {
 }
 
 model Product {
-  id          Int       @id @default(autoincrement())
-  name        String
-  description String
-  priceCents  Int
-  imageUrl    String?
-  checkoutUrl String?
-  hotmartProductId String? @unique
-  createdAt   DateTime  @default(now())
-  userId      String?
-  user        User?     @relation(fields: [userId], references: [id])
+  id               Int       @id @default(autoincrement())
+  name             String
+  description      String
+  priceCents       Int
+  imageUrl         String?
+  checkoutUrl      String?
+  salesPageUrl     String?
+  externalId       String?
+  externalPlatform String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  userId           String?
+  user             User?     @relation(fields: [userId], references: [id])
 }
 
 // Auth models (Auth.js / NextAuth Prisma Adapter)
@@ -91,16 +101,4 @@ model Authenticator {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, credentialID])
-}
-
-model HotmartConfig {
-  id             String   @id @default("singleton")
-  clientId       String
-  clientSecret   String
-  basicToken     String
-  webhookSecret  String?
-  accessToken    String?
-  refreshToken   String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
 }

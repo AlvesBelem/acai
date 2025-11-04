@@ -7,7 +7,7 @@ import { AppRole } from "@/lib/roles";
 export async function Navbar() {
   const session = await auth();
   const role = session?.user?.role as AppRole | undefined;
-  const isAdmin = role === "ADMIN";
+  const isAdmin = role === "ADMIN" || role === "SUPERUSER";
 
   return (
     <header className="sticky top-0 z-30 border-b bg-white/70 backdrop-blur dark:border-zinc-900 dark:bg-zinc-950/70">

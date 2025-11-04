@@ -1,90 +1,49 @@
 export const dynamic = "force-dynamic";
 
 import { db } from "@/lib/db";
-import { fetchHotmartSalesHistory } from "@/lib/hotmart";
 import { cn } from "@/lib/utils";
 
-function subDays(date: Date, amount: number) {
-  const result = new Date(date);
-  result.setDate(result.getDate() - amount);
-  return result;
-}
-
-function formatISODate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function formatLabel(date: Date) {
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${day}/${month}`;
-}
-
 async function getDashboardData() {
-  const [leadsCount, adminCount, productCount] = await Promise.all([
+  const [leadsCount, adminCount, productCount, activeCount, activeSum, recentProducts] = await Promise.all([
     db.user.count({ where: { role: "LEAD" } }),
-    db.user.count({ where: { role: "ADMIN" } }),
+    db.user.count({ where: { role: { in: ["ADMIN", "SUPERUSER"] } } }),
     db.product.count(),
+    db.product.count({ where: { isActive: true } }),
+    db.product.aggregate({
+      where: { isActive: true },
+      _sum: { priceCents: true },
+    }),
+    db.product.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        name: true,
+        externalPlatform: true,
+        externalId: true,
+        priceCents: true,
+        isActive: true,
+        updatedAt: true,
+      },
+    }),
   ]);
 
-  let sales = [] as Awaited<ReturnType<typeof fetchHotmartSalesHistory>>;
-  try {
-    const end = new Date();
-    const start = subDays(end, 6);
-    sales = await fetchHotmartSalesHistory({
-      startDate: formatISODate(start),
-      endDate: formatISODate(end),
-      rows: 200,
-    });
-  } catch (error) {
-    sales = [];
-  }
-
-  const totalRevenue = sales.reduce((sum, sale) => sum + (sale.amount ?? 0), 0);
-  const salesCount = sales.length;
-
-  const todayKey = formatISODate(new Date());
-  const todaySales = sales.filter((sale) => sale.approvedAt?.startsWith(todayKey)).length;
-
-  const labels: string[] = [];
-  const weeklyMap = new Map<string, { count: number; amount: number }>();
-
-  for (let i = 6; i >= 0; i -= 1) {
-    const date = subDays(new Date(), i);
-    const key = formatISODate(date);
-    weeklyMap.set(key, { count: 0, amount: 0 });
-    labels.push(key);
-  }
-
-  for (const sale of sales) {
-    if (!sale.approvedAt) continue;
-    const key = sale.approvedAt.slice(0, 10);
-    if (weeklyMap.has(key)) {
-      const entry = weeklyMap.get(key)!;
-      entry.count += 1;
-      entry.amount += sale.amount ?? 0;
-      weeklyMap.set(key, entry);
-    }
-  }
-
-  const weeklySales = labels.map((key) => ({
-    label: formatLabel(new Date(key)),
-    value: weeklyMap.get(key)?.count ?? 0,
-  }));
+  const inactiveCount = productCount - activeCount;
+  const catalogValueCents = activeSum._sum.priceCents ?? 0;
 
   return {
     leadsCount,
     adminCount,
     productCount,
-    salesCount,
-    totalRevenue,
-    todaySales,
-    weeklySales,
+    activeCount,
+    inactiveCount,
+    catalogValueCents,
+    recentProducts,
   };
 }
 
 export default async function AdminDashboardPage() {
-  const { leadsCount, adminCount, productCount, salesCount, totalRevenue, todaySales, weeklySales } =
+  const { leadsCount, adminCount, productCount, activeCount, inactiveCount, catalogValueCents, recentProducts } =
     await getDashboardData();
 
   return (
@@ -95,45 +54,72 @@ export default async function AdminDashboardPage() {
           value={`${leadsCount}`}
           subtitle={`Administradores: ${adminCount}`}
         />
-        <SummaryCard title="Produtos" value={`${productCount}`} subtitle="Ofertas sincronizadas" />
-        <SummaryCard title="Vendas (7 dias)" value={`${salesCount}`} subtitle="Total de pedidos aprovados" />
+        <SummaryCard title="Produtos ativos" value={`${activeCount}`} subtitle="Publicados na plataforma" />
+        <SummaryCard title="Produtos inativos" value={`${inactiveCount}`} subtitle="Disponiveis para ajustes" />
         <SummaryCard
-          title="Faturamento (7 dias)"
-          value={totalRevenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-          subtitle={`Vendas hoje: ${todaySales}`}
+          title="Valor do catálogo"
+          value={(catalogValueCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          subtitle={`${productCount} produto${productCount === 1 ? "" : "s"} cadastrados`}
           accent
         />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-3xl border border-zinc-200 bg-white/90 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90 lg:col-span-2">
-          <h2 className="text-lg font-semibold">Vendas Hotmart (7 dias)</h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Dados atualizados diretamente da API da Hotmart.
-          </p>
-          <div className="mt-8 grid grid-cols-7 gap-3">
-            {weeklySales.map((day) => (
-              <div key={day.label} className="flex flex-col items-center gap-2">
+        <div className="space-y-5 rounded-3xl border border-zinc-200 bg-white/90 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90 lg:col-span-2">
+          <div>
+            <h2 className="text-lg font-semibold">Ultimas atualizacoes do catalogo</h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Acompanhe os produtos editados recentemente e valide links, precos e status de publicacao.
+            </p>
+          </div>
+          <div className="space-y-4">
+            {recentProducts.length === 0 ? (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Ainda nao ha produtos cadastrados. Utilize a aba &quot;Produtos&quot; para criar a primeira oferta.
+              </p>
+            ) : (
+              recentProducts.map((product) => (
                 <div
-                  className="flex h-24 w-10 items-end justify-center rounded-full bg-zinc-100 p-1 dark:bg-zinc-800"
+                  key={product.id}
+                  className="flex flex-col justify-between gap-2 rounded-2xl border border-zinc-200 bg-white/80 px-4 py-4 text-sm dark:border-zinc-800 dark:bg-zinc-900/80 md:flex-row md:items-center"
                 >
-                  <div
-                    className="w-full rounded-full bg-gradient-to-b from-[#7B2CBF] to-[#5C1F8E]"
-                    style={{ height: `${Math.min(day.value * 15, 100)}%` }}
-                  />
+                  <div>
+                    <p className="font-semibold text-zinc-800 dark:text-zinc-100">{product.name}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {product.externalPlatform ?? "Plataforma manual"}
+                      {product.externalId ? ` - ID ${product.externalId}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+                    <span>
+                      {product.isActive ? "Ativo" : "Inativo"} -{" "}
+                      {(product.priceCents / 100).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </span>
+                    <span>
+                      Atualizado em{" "}
+                      {new Date(product.updatedAt).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
                 </div>
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">{day.label}</span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         <div className="rounded-3xl border border-zinc-200 bg-white/90 p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90">
           <h2 className="text-lg font-semibold">Checklist rapido</h2>
           <ul className="mt-4 space-y-3 text-sm text-zinc-500 dark:text-zinc-400">
-            <li>- Confirme as credenciais da Hotmart e renove tokens periodicamente.</li>
-            <li>- Sincronize produtos para manter o catalogo atualizado.</li>
-            <li>- Acompanhe vendas por dia e valide com o time financeiro.</li>
+            <li>- Revise periodicamente os links de checkout e pagina de vendas.</li>
+            <li>- Atualize precos e descricoes conforme campanhas vigentes.</li>
+            <li>- Utilize imagens em Data URL ou links confiaveis para evitar quedas.</li>
           </ul>
         </div>
       </section>
@@ -156,7 +142,7 @@ function SummaryCard({
     <div
       className={cn(
         "rounded-3xl border border-zinc-200 bg-white/90 p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/90",
-        accent && "bg-gradient-to-br from-[#7B2CBF] via-[#5C1F8E] to-[#2B0141] text-white dark:border-transparent"
+        accent && "bg-linear-to-br from-[#7B2CBF] via-[#5C1F8E] to-[#2B0141] text-white dark:border-transparent"
       )}
     >
       <p className={cn("text-sm font-semibold text-zinc-500 dark:text-zinc-400", accent && "text-white/70")}>{title}</p>
@@ -165,4 +151,7 @@ function SummaryCard({
     </div>
   );
 }
+
+
+
 
