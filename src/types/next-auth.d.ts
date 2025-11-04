@@ -8,6 +8,7 @@ type LeadDetails = {
   company?: string | null;
   jobTitle?: string | null;
   location?: string | null;
+  source?: string | null;
 };
 
 declare module "next-auth" {

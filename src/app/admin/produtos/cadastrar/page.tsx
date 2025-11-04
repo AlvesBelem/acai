@@ -92,7 +92,7 @@ export default async function CadastrarProdutoPage() {
                 name="isActive"
                 value="true"
                 defaultChecked
-                className="h-4 w-4 rounded border border-zinc-300 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 dark:border-zinc-700 dark:bg-zinc-900"
+                className="h-4 w-4 rounded border border-zinc-300 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 dark:border-zinc-700 dark:bg-zinc-900"
               />
               Produto ativo na plataforma
             </label>
@@ -215,7 +215,7 @@ export default async function CadastrarProdutoPage() {
                       name="isActive"
                       value="true"
                       defaultChecked={product.isActive}
-                      className="h-4 w-4 rounded border border-zinc-300 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 dark:border-zinc-700 dark:bg-zinc-900"
+                      className="h-4 w-4 rounded border border-zinc-300 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 dark:border-zinc-700 dark:bg-zinc-900"
                     />
                     Produto ativo na plataforma
                   </label>
@@ -233,7 +233,7 @@ export default async function CadastrarProdutoPage() {
                     <Button
                       type="submit"
                       formAction={deleteProduct}
-                      variant="destructive"
+                      variant="outline"
                       size="sm"
                     >
                       Remover
@@ -255,3 +255,6 @@ export default async function CadastrarProdutoPage() {
     </div>
   );
 }
+
+
+
