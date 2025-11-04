@@ -40,7 +40,9 @@ const GOOGLE_PEOPLE_FIELDS = "phoneNumbers,addresses,organizations,locales";
 const GOOGLE_PEOPLE_ENDPOINT = `https://people.googleapis.com/v1/people/me?personFields=${encodeURIComponent(
   GOOGLE_PEOPLE_FIELDS
 )}`;
-const env = (globalThis.process?.env ?? {}) as Record<string, string | undefined>;
+
+const env = process.env;
+
 const GOOGLE_CLIENT_ID = env.AUTH_GOOGLE_ID;
 const GOOGLE_CLIENT_SECRET = env.AUTH_GOOGLE_SECRET;
 const AUTH_SECRET = env.AUTH_SECRET;
@@ -69,64 +71,46 @@ function getPrimaryValue<T extends { metadata?: { primary?: boolean | null } | n
 }
 
 function isEdgeRuntime() {
-  return typeof (globalThis as unknown as { EdgeRuntime?: string | undefined }).EdgeRuntime === "string";
+  return typeof (globalThis as any).EdgeRuntime === "string";
+}
+
+function isServerRuntime() {
+  return typeof window === "undefined" && !isEdgeRuntime() && process.env.NODE_ENV !== "production";
 }
 
 async function fetchGoogleLeadDetails(accessToken: string): Promise<GoogleLeadDetails | null> {
-  if (!accessToken) return null;
+  if (!accessToken || typeof fetch !== "function") return null;
 
-  const fetchApi = typeof globalThis.fetch === "function" ? globalThis.fetch.bind(globalThis) : null;
-  if (!fetchApi) {
-    return null;
-  }
-
-  const response = await fetchApi(GOOGLE_PEOPLE_ENDPOINT, {
+  const response = await fetch(GOOGLE_PEOPLE_ENDPOINT, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
     next: { revalidate: 0 },
   });
 
-  if (!response.ok) {
-    return null;
-  }
-
-  type PeoplePhone = { value?: string | null; metadata?: { primary?: boolean | null } | null };
-  type PeopleAddress = {
-    formattedValue?: string | null;
-    metadata?: { primary?: boolean | null } | null;
-  };
-  type PeopleOrg = {
-    name?: string | null;
-    title?: string | null;
-    metadata?: { primary?: boolean | null } | null;
-  };
-  type PeopleLocale = { value?: string | null; metadata?: { primary?: boolean | null } | null };
+  if (!response.ok) return null;
 
   const data = (await response.json()) as {
-    phoneNumbers?: PeoplePhone[] | null;
-    addresses?: PeopleAddress[] | null;
-    organizations?: PeopleOrg[] | null;
-    locales?: PeopleLocale[] | null;
+    phoneNumbers?: { value?: string | null; metadata?: { primary?: boolean } | null }[] | null;
+    addresses?: { formattedValue?: string | null; metadata?: { primary?: boolean } | null }[] | null;
+    organizations?: { name?: string | null; title?: string | null; metadata?: { primary?: boolean } | null }[] | null;
+    locales?: { value?: string | null; metadata?: { primary?: boolean } | null }[] | null;
   };
 
-  const phone = getPrimaryValue<PeoplePhone>(data.phoneNumbers, (item) => item.value ?? null);
-  const location = getPrimaryValue<PeopleAddress>(data.addresses, (item) => item.formattedValue ?? null);
+  const phone = getPrimaryValue(data.phoneNumbers, (item) => item.value ?? null);
+  const location = getPrimaryValue(data.addresses, (item) => item.formattedValue ?? null);
+  const company = getPrimaryValue(data.organizations, (item) => item.name ?? null);
+  const jobTitle = getPrimaryValue(data.organizations, (item) => item.title ?? null);
+  const locale = getPrimaryValue(data.locales, (item) => item.value ?? null);
 
-  const organization = getPrimaryValue<PeopleOrg>(data.organizations, (item) => item.name ?? null);
-  const jobTitle = getPrimaryValue<PeopleOrg>(data.organizations, (item) => item.title ?? null);
-  const locale = getPrimaryValue<PeopleLocale>(data.locales, (item) => item.value ?? null);
-
-  if (!phone && !location && !organization && !jobTitle && !locale) {
-    return null;
-  }
+  if (!phone && !location && !company && !jobTitle && !locale) return null;
 
   return {
-    phone: phone ?? null,
-    location: location ?? null,
-    company: organization ?? null,
-    jobTitle: jobTitle ?? null,
-    locale: locale ?? null,
+    phone,
+    location,
+    company,
+    jobTitle,
+    locale,
     source: "Google People API",
   };
 }
@@ -162,7 +146,7 @@ export const {
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 24 * 30, // 30 dias
-    updateAge: 60 * 60 * 24, // renova a cada 24h
+    updateAge: 60 * 60 * 24,   // atualiza a cada 24h
   },
   jwt: {
     maxAge: 60 * 60 * 24 * 30,
@@ -185,60 +169,29 @@ export const {
         const { id, role, image, phone, locale, company, jobTitle, location, source } = user as UserWithRole;
         token.id = id;
         token.role = role ?? DEFAULT_ROLE;
-        if (typeof image === "string" && image.length > 0) {
-          token.picture = image;
-        }
-        if (typeof phone === "string" && phone.length > 0) {
-          token.phone = phone;
-        }
-        if (typeof locale === "string" && locale.length > 0) {
-          token.locale = locale;
-        }
-        if (typeof company === "string" && company.length > 0) {
-          token.company = company;
-        }
-        if (typeof jobTitle === "string" && jobTitle.length > 0) {
-          token.jobTitle = jobTitle;
-        }
-        if (typeof location === "string" && location.length > 0) {
-          token.location = location;
-        }
-        if (typeof source === "string" && source.length > 0) {
-          token.source = source;
-        }
+        token.picture = image ?? undefined;
+        token.phone = phone ?? undefined;
+        token.locale = locale ?? undefined;
+        token.company = company ?? undefined;
+        token.jobTitle = jobTitle ?? undefined;
+        token.location = location ?? undefined;
+        token.source = source ?? "Google OAuth";
       } else if (!isEdgeRuntime() && typeof token.sub === "string") {
-        const dbUser = await db.user.findUnique({
-          where: { id: token.sub },
-        });
-        const dbSource = (dbUser as { source?: string | null } | null)?.source ?? null;
-        if (!token.picture && dbUser?.image) {
-          token.picture = dbUser.image;
-        }
-        if (!token.phone && dbUser?.phone) {
-          token.phone = dbUser.phone;
-        }
-        if (!token.locale && dbUser?.locale) {
-          token.locale = dbUser.locale;
-        }
-        if (!token.company && dbUser?.company) {
-          token.company = dbUser.company;
-        }
-        if (!token.jobTitle && dbUser?.jobTitle) {
-          token.jobTitle = dbUser.jobTitle;
-        }
-        if (!token.location && dbUser?.location) {
-          token.location = dbUser.location;
-        }
-        if (!token.source && dbSource) {
-          token.source = dbSource;
+        const dbUser = await db.user.findUnique({ where: { id: token.sub } });
+        if (dbUser) {
+          token.picture = token.picture ?? dbUser.image ?? undefined;
+          token.phone = token.phone ?? dbUser.phone ?? undefined;
+          token.locale = token.locale ?? dbUser.locale ?? undefined;
+          token.company = token.company ?? dbUser.company ?? undefined;
+          token.jobTitle = token.jobTitle ?? dbUser.jobTitle ?? undefined;
+          token.location = token.location ?? dbUser.location ?? undefined;
+          token.source = token.source ?? dbUser.source ?? "Google OAuth";
         }
       }
 
-      if (!token.source) {
-        token.source = "Google OAuth";
-      }
-
+      // Só busca os dados adicionais se for server runtime (não build) e ambiente seguro
       if (
+        isServerRuntime() &&
         account?.provider === "google" &&
         typeof account.access_token === "string" &&
         typeof token.sub === "string"
@@ -246,55 +199,36 @@ export const {
         try {
           const details = await fetchGoogleLeadDetails(account.access_token);
           if (details) {
-            if (!isEdgeRuntime()) {
-              await updateLeadDetailsFromGoogle(token.sub, details);
-            }
-            if (details.phone) token.phone = details.phone;
-            if (details.locale) token.locale = details.locale;
-            if (details.company) token.company = details.company;
-            if (details.jobTitle) token.jobTitle = details.jobTitle;
-            if (details.location) token.location = details.location;
-            if (details.source) token.source = details.source;
+            await updateLeadDetailsFromGoogle(token.sub, details);
+            token.phone = details.phone ?? token.phone;
+            token.locale = details.locale ?? token.locale;
+            token.company = details.company ?? token.company;
+            token.jobTitle = details.jobTitle ?? token.jobTitle;
+            token.location = details.location ?? token.location;
+            token.source = details.source ?? token.source;
           }
         } catch (error) {
-          globalThis.console?.error?.("[auth] enrich-google-lead failed", error);
+          console.error("[auth] enrich-google-lead failed", error);
         }
       }
 
       return token;
     },
+
     async session({ session, token }) {
       if (session.user) {
-        const { id, role, picture, phone, locale, company, jobTitle, location, source } =
-          token as TokenWithRole;
-        if (typeof id === "string") {
-          session.user.id = id;
-        }
-        session.user.role = role ?? DEFAULT_ROLE;
-        if (typeof picture === "string") {
-          session.user.image = picture;
-        }
-        if (typeof phone === "string") {
-          session.user.phone = phone;
-        }
-        if (typeof locale === "string") {
-          session.user.locale = locale;
-        }
-        if (typeof company === "string") {
-          session.user.company = company;
-        }
-        if (typeof jobTitle === "string") {
-          session.user.jobTitle = jobTitle;
-        }
-        if (typeof location === "string") {
-          session.user.location = location;
-        }
-        if (typeof source === "string") {
-          session.user.source = source;
-        }
+        const t = token as TokenWithRole;
+        session.user.id = t.id as string;
+        session.user.role = t.role ?? DEFAULT_ROLE;
+        session.user.image = t.picture ?? null;
+        session.user.phone = t.phone ?? null;
+        session.user.locale = t.locale ?? null;
+        session.user.company = t.company ?? null;
+        session.user.jobTitle = t.jobTitle ?? null;
+        session.user.location = t.location ?? null;
+        session.user.source = t.source ?? null;
       }
       return session;
     },
   },
 });
-
