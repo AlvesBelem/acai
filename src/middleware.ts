@@ -5,7 +5,7 @@ export default auth((req) => {
   const { nextUrl } = req;
   const isAuth = !!req.auth;
   const role = req.auth?.user?.role as AppRole | undefined;
-  const isAdmin = role === "ADMIN";
+  const isAdmin = role === "ADMIN" || role === "SUPERUSER";
   const pathname = nextUrl.pathname;
   const isAdminRoute = pathname.startsWith("/admin");
   const isPlatformRoute = pathname.startsWith("/plataforma");

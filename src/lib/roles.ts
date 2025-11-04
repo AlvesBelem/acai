@@ -1,6 +1,7 @@
-export type AppRole = "ADMIN" | "LEAD";
+export type AppRole = "SUPERUSER" | "ADMIN" | "LEAD";
 
 export const ROLES: Record<AppRole, AppRole> = {
+  SUPERUSER: "SUPERUSER",
   ADMIN: "ADMIN",
   LEAD: "LEAD",
 };

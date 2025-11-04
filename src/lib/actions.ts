@@ -5,45 +5,11 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { AppRole, ROLES } from "@/lib/roles";
-import { fetchHotmartProducts } from "@/lib/hotmart";
 
 function ensureAdmin(role?: AppRole | null) {
-  if (role !== "ADMIN") {
+  if (role !== ROLES.ADMIN && role !== ROLES.SUPERUSER) {
     throw new Error("Acesso negado");
   }
-}
-
-export async function saveHotmartConfig(formData: FormData) {
-  const session = await auth();
-  ensureAdmin(session?.user?.role ?? null);
-
-  const clientId = String(formData.get("clientId") || "").trim();
-  const clientSecret = String(formData.get("clientSecret") || "").trim();
-  const basicToken = String(formData.get("basicToken") || "").trim();
-  const webhookSecret = ((formData.get("webhookSecret") as string) || "").trim() || null;
-
-  if (!clientId || !clientSecret || !basicToken) {
-    throw new Error("Preencha clientId, clientSecret e basicToken");
-  }
-
-  await (db as any).hotmartConfig.upsert({
-    where: { id: "singleton" },
-    update: {
-      clientId,
-      clientSecret,
-      basicToken,
-      webhookSecret,
-    },
-    create: {
-      id: "singleton",
-      clientId,
-      clientSecret,
-      basicToken,
-      webhookSecret,
-    },
-  });
-
-  revalidatePath("/admin/integracoes/hotmart");
 }
 
 export async function promoteToAdmin(formData: FormData) {
@@ -69,54 +35,120 @@ export async function demoteToLead(formData: FormData) {
   revalidatePath("/admin/admins");
   revalidatePath("/admin/clientes");
 }
-export async function syncHotmartProducts() {
+
+function optionalString(value: FormDataEntryValue | null): string | null {
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+}
+
+function parseCurrencyToCents(value: FormDataEntryValue | null): number {
+  if (value == null) return 0;
+  const raw = String(value).trim();
+  if (!raw) return 0;
+  const sanitized = raw.replace(/[^\d,.-]/g, "").replace(/\.(?=.*\.)/g, "").replace(",", ".");
+  const parsed = Number(sanitized);
+  if (!Number.isFinite(parsed)) {
+    throw new Error("Informe um valor de preco valido.");
+  }
+  return Math.round(parsed * 100);
+}
+
+function parseBoolean(value: FormDataEntryValue | null, fallback = true) {
+  if (value == null) return fallback;
+  const normalized = String(value).toLowerCase();
+  return normalized === "true" || normalized === "on" || normalized === "1";
+}
+
+function toProductPayload(formData: FormData, options?: { defaultActive?: boolean }) {
+  const defaultActive = options?.defaultActive ?? true;
+  const name = optionalString(formData.get("name"));
+  const description = optionalString(formData.get("description"));
+  const priceCents = parseCurrencyToCents(formData.get("price"));
+  const hasIsActiveField = formData.has("isActive");
+  const isActive = hasIsActiveField ? parseBoolean(formData.get("isActive"), defaultActive) : defaultActive;
+
+  if (!name) {
+    throw new Error("Informe um nome para o produto.");
+  }
+  if (!description) {
+    throw new Error("Informe uma descricao para o produto.");
+  }
+  if (priceCents <= 0) {
+    throw new Error("Informe um preco valido (acima de zero).");
+  }
+
+  return {
+    name,
+    description,
+    priceCents,
+    imageUrl: optionalString(formData.get("imageUrl")),
+    checkoutUrl: optionalString(formData.get("checkoutUrl")),
+    salesPageUrl: optionalString(formData.get("salesPageUrl")),
+    externalId: optionalString(formData.get("externalId")),
+    externalPlatform: optionalString(formData.get("externalPlatform")),
+    isActive,
+  };
+}
+
+export async function createProduct(formData: FormData) {
   const session = await auth();
   ensureAdmin(session?.user?.role ?? null);
 
-  let products = [] as Awaited<ReturnType<typeof fetchHotmartProducts>>;
-  try {
-    products = await fetchHotmartProducts();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Falha ao consultar Hotmart";
-    throw new Error(message);
-  }
+  const payload = toProductPayload(formData, { defaultActive: true });
 
-  let created = 0;
-  let updated = 0;
-
-  for (const product of products) {
-    const priceCents = Math.round((product.price || 0) * 100);
-    const description = product.description || "Produto sincronizado via Hotmart";
-    const checkoutUrl =
-      product.checkoutUrl || (product.id ? `https://pay.hotmart.com/${product.id}` : undefined);
-
-    const existing = await db.product.findFirst({
-      where: { hotmartProductId: product.id },
-    });
-
-    const payload = {
-      name: product.name,
-      description,
-      priceCents,
-      imageUrl: product.imageUrl,
-      checkoutUrl,
-      hotmartProductId: product.id,
-    } as const;
-
-    if (existing) {
-      await db.product.update({ where: { id: existing.id }, data: payload });
-      updated += 1;
-    } else {
-      await db.product.create({ data: payload });
-      created += 1;
-    }
-  }
+  await db.product.create({
+    data: {
+      ...payload,
+      userId: session?.user?.id ?? null,
+    },
+  });
 
   revalidatePath("/plataforma");
   revalidatePath("/admin");
   revalidatePath("/admin/produtos");
+  revalidatePath("/admin/produtos/cadastrar");
+}
 
-  return { created, updated, total: created + updated };
+export async function updateProduct(formData: FormData) {
+  const session = await auth();
+  ensureAdmin(session?.user?.role ?? null);
+
+  const idValue = formData.get("productId");
+  const id = Number(idValue);
+  if (!Number.isInteger(id)) {
+    throw new Error("Produto invalido.");
+  }
+
+  const payload = toProductPayload(formData, { defaultActive: false });
+
+  await db.product.update({
+    where: { id },
+    data: payload,
+  });
+
+  revalidatePath("/plataforma");
+  revalidatePath("/admin");
+  revalidatePath("/admin/produtos");
+  revalidatePath("/admin/produtos/cadastrar");
+}
+
+export async function deleteProduct(formData: FormData) {
+  const session = await auth();
+  ensureAdmin(session?.user?.role ?? null);
+
+  const idValue = formData.get("productId");
+  const id = Number(idValue);
+  if (!Number.isInteger(id)) {
+    throw new Error("Produto invalido.");
+  }
+
+  await db.product.delete({ where: { id } });
+
+  revalidatePath("/plataforma");
+  revalidatePath("/admin");
+  revalidatePath("/admin/produtos");
+  revalidatePath("/admin/produtos/cadastrar");
 }
 
 

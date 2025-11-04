@@ -13,7 +13,7 @@ export default async function AuthRedirectPage() {
   }
 
   const role = session.user.role ?? DEFAULT_ROLE;
-  redirect(role === "ADMIN" ? "/admin" : "/plataforma");
+  redirect(role === "ADMIN" || role === "SUPERUSER" ? "/admin" : "/plataforma");
 }
 
 

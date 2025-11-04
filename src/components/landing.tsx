@@ -56,7 +56,7 @@ const aboutHighlights: Highlight[] = [
   {
     icon: ShieldCheck,
     title: "Pagamento imediato",
-    description: "Repasse via Hotmart no mesmo dia, sem burocracia bancária.",
+    description: "Repasse via checkout digital no mesmo dia, sem burocracia bancária.",
   },
   {
     icon: MapPin,
@@ -97,7 +97,7 @@ const steps: Step[] = [
   {
     title: "Pagamento imediato",
     description:
-      "O valor por quilo coletado é liberado via link da Hotmart assim que a pesagem é concluída.",
+      "O valor por quilo coletado é liberado via link de checkout assim que a pesagem é concluída.",
   },
   {
     title: "Relatório circular",
@@ -124,7 +124,7 @@ const testimonials: Testimonial[] = [
   },
   {
     quote:
-      "Equipe pontual, pesagem transparente e checkout Hotmart confiável. Virou uma nova fonte de receita para a rede.",
+      "Equipe pontual, pesagem transparente e checkout digital confiável. Virou uma nova fonte de receita para a rede.",
     author: "Carlos Andrade",
     role: "Gerente da TropicAçaí",
     avatar:
@@ -141,7 +141,7 @@ const faqs: Faq[] = [
   {
     question: "Quanto recebo por quilo?",
     answer:
-      "A remuneração varia conforme volume e região. O valor aparece antes da coleta e é pago no mesmo dia via Hotmart.",
+      "A remuneração varia conforme volume e região. O valor aparece antes da coleta e é pago no mesmo dia via checkout digital.",
   },
   {
     question: "Preciso armazenar os caroços?",
@@ -185,7 +185,7 @@ export default function Landing() {
               >
                 {pending ? "Conectando..." : "Acessar plataforma"}
               </Button>
-              <Button
+              {/* <Button
                 size="lg"
                 variant="outline"
                 className="border-white/30 bg-transparent text-white hover:bg-white/10"
@@ -193,7 +193,7 @@ export default function Landing() {
                 disabled={pending}
               >
                 Ver plano de coleta
-              </Button>
+              </Button> */}
             </div>
             <div className="grid max-w-lg grid-cols-3 gap-6 pt-8 text-left">
               {heroStats.map((stat) => (

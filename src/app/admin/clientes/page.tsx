@@ -15,10 +15,10 @@ export default async function ClientesPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold">Clientes (leads)</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Acompanhe os estabelecimentos interessados e promova parceiros estrategicos para administradores.
-        </p>
-      </header>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Acompanhe os estabelecimentos interessados e promova parceiros estrategicos para administradores.
+          </p>
+        </header>
 
       <div className="grid gap-4 md:grid-cols-2">
         {leads.length === 0 ? (
@@ -33,6 +33,17 @@ export default async function ClientesPage() {
                 {lead.name ?? lead.email}
               </p>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">{lead.email}</p>
+              <div className="mt-2 space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {lead.phone ? <p>Telefone: {lead.phone}</p> : null}
+                {lead.company || lead.jobTitle ? (
+                  <p>
+                    {lead.company ?? "Empresa nao informada"}
+                    {lead.jobTitle ? ` - ${lead.jobTitle}` : ""}
+                  </p>
+                ) : null}
+                {lead.location ? <p>Local: {lead.location}</p> : null}
+                {lead.locale ? <p>Idioma: {lead.locale}</p> : null}
+              </div>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">
                 Criado em {new Date(lead.createdAt).toLocaleDateString("pt-BR")}
               </p>
@@ -47,4 +58,3 @@ export default async function ClientesPage() {
     </div>
   );
 }
-
