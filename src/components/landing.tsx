@@ -16,6 +16,7 @@ import {
   TimerReset,
   Truck,
 } from "lucide-react";
+import ChatWidget from "./landing/ChatWidget";
 
 type Step = {
   title: string;
@@ -508,12 +509,21 @@ export default function Landing() {
           rel="noreferrer"
           className="pointer-events-auto flex h-20 w-50 items-center justify-center rounded-full bg-[#25D366] text-white shadow-xl shadow-[#25D366]/40 transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-[#25D366] focus-visible:outline-offset-2 animate-bounce"
         >
-          <MessageCircle className="h-7 w-7" />
+          <MessageCircle className="h-7 w-7 " />
           <span className="sr-only">Contato via WhatsApp</span>
         </a>
       </div>
+      {/* Botão flutuante do Chat no lado direito (ajustado) */}
+      <div className="fixed bottom-[150px] right-8 z-50 animate-bounce ">
+        <div className="relative flex items-center justify-center h-20 w-20 rounded-full bg-[#7B2CBF] text-white shadow-lg shadow-[#7B2CBF]/40 hover:scale-110 transition-transform left">
+          <ChatWidget />
+        </div>
+      </div>
+
+
     </div>
   );
+
 }
 
 function CardBullet({ icon, children }: { icon: ReactNode; children: ReactNode }) {
@@ -522,5 +532,9 @@ function CardBullet({ icon, children }: { icon: ReactNode; children: ReactNode }
       {icon}
       <span className="text-[#F4E5FF]">{children}</span>
     </div>
+
   );
+
+
+
 }
